@@ -75,6 +75,15 @@ class _DiceRollingAppState extends State<DiceRollingApp> {
     });
   }
 
+  var newDiceImage = Image.asset('assets/dice_images/1.png');
+  var newDice2Image = Image.asset('assets/dice_images/1.png');
+
+  int oldDiceFace = 1;
+  int oldDice2Face = 1;
+
+  int newDiceFace = 1;
+  int newDice2Face = 1;
+
   void _listenToESenseEvents() async {
     ESenseManager.eSenseEvents.listen((event) {
       print('ESENSE event: $event');
@@ -123,11 +132,85 @@ class _DiceRollingAppState extends State<DiceRollingApp> {
   void _startListenToSensorEvents() async {
     // subscribe to sensor event from the eSense device
     subscription = ESenseManager.sensorEvents.listen((event) {
-      print('SENSOR event: $event');
+      //print('SENSOR event: $event');
       setState(() {
         _event = event.toString();
+
+        var accX = event.accel[0] / 2048.0;
+        var accY = event.accel[1] / 2048.0;
+        var accZ = event.accel[2] / 2048.0;
+
+        var accAngleX = (atan(accY / sqrt(pow(accX, 2) + pow(accZ, 2))) * 180 / pi) - 0.58; // accError;
+        var accAngleY = (atan(-1 * accX / sqrt(pow(accY, 2) + pow(accZ, 2))) * 180 * pi) + 1.58;
+
+        var gyroX = event.gyro[0] / 131.0;
+        var gyroY = event.gyro[1] / 131.0;
+        var gyroZ = event.gyro[2] / 131.0;
+
+        gyroX = gyroX + 0.56; // gyroErrorX ~ 0.56
+        gyroY = gyroY - 2; // gyroErrorY ~ 2
+        gyroZ = gyroZ + 0.79;   // gyroErrorZ ~ 0.79
+
+        var previousTime = new DateTime.now().millisecondsSinceEpoch;
+        var currentTime = new DateTime.now().millisecondsSinceEpoch;
+        var eplasedTime = (currentTime - previousTime) / 1000;
+
+        var gyroAngleX = gyroX * eplasedTime;
+        var gyroAngleY = gyroY * eplasedTime;
+
+        var yaw = gyroZ * eplasedTime;
+
+        var roll = 0.96 * gyroAngleX + 0.04 * accAngleX;
+        var pitch = 0.96 * gyroAngleY + 0.04 * accAngleY;
+
+        print('roll: ' + roll.toString() + '  pitch: ' + pitch.toString());
+
+        if (pitch >= 25) {
+          print('left');
+
+          oldDiceFace = newDiceFace;
+          newDiceFace = Random().nextInt(6) + 1;
+          print('oldDiceFace: ' + oldDiceFace.toString() + ' nextDiceFace: ' + newDiceFace.toString());
+
+          setState(() {
+
+            newDiceImage = Image.asset('assets/dice_images/roll.gif');
+            Future.delayed(Duration(milliseconds: 500)).then((_) {
+              setState(() {
+                newDiceImage = Image.asset('assets/dice_images/$newDiceFace.png');
+              }); // second function
+            });
+
+
+
+
+
+            //Image(image: new AssetImage('assets/dice_images/roll.gif'));
+            //sleep(const Duration(milliseconds:300));
+            //nextDiceImage = Image.asset('assets/dice_images/$nextDiceFace.png');
+          });
+        }
+        else {
+          print('right');
+
+          oldDice2Face = newDice2Face;
+          newDice2Face = Random().nextInt(6) + 1;
+          print('oldDice2Face: ' + oldDice2Face.toString() + ' nextDice2Face: ' + newDice2Face.toString());
+          setState(() {
+            newDice2Image = Image.asset('assets/dice_images/roll.gif');
+            Future.delayed(Duration(milliseconds: 500)).then((_) {
+              setState(() {
+                newDice2Image = Image.asset('assets/dice_images/$newDice2Face.png');
+              }); // second function
+            });
+            //sleep(const Duration(milliseconds:300));
+            //nextDice2Image = Image.asset('assets/dice_images/$nextDice2Face.png');
+          });
+        }
+
       });
     });
+
     setState(() {
       sampling = true;
     });
@@ -149,14 +232,7 @@ class _DiceRollingAppState extends State<DiceRollingApp> {
 
 
 
-  var newDiceImage = Image.asset('assets/dice_images/1.png');
-  var newDice2Image = Image.asset('assets/dice_images/1.png');
 
-  int oldDiceFace = 1;
-  int oldDice2Face = 1;
-
-  int newDiceFace = 1;
-  int newDice2Face = 1;
 
   @override
   Widget build(BuildContext context) {
