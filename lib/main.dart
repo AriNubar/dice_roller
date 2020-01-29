@@ -11,8 +11,24 @@ import 'dart:math';
 ///
 void main() => runApp(MainApp());
 
+
 ///
-/// Parent Widget to the entire App
+/// Introduces MaterialLocalizations
+/// Needed for the AlertView --> https://stackoverflow.com/questions/54035175/flutter-showdialog-alertdialog-no-materiallocalizations-found
+///
+class MainApp extends StatelessWidget {
+  Widget build(BuildContext context) {
+    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      title: 'Dice Roller',
+      home: DiceApp(),
+    );
+  }
+}
+
+///
+/// Parent Widget
 ///
 class DiceApp extends StatefulWidget {
   @override
@@ -28,8 +44,7 @@ class _DiceAppState extends State<DiceApp> {
   String _deviceStatus = '';
   bool sampling = false;
   String _event = '';
-  DateTime lastImageUpdate = new DateTime(2000);
-  int changedPicture = 0;
+
   // the name of the eSense device to connect to -- change this to your own device.
   String eSenseName = 'eSense-0058';
   Image img;
@@ -37,11 +52,14 @@ class _DiceAppState extends State<DiceApp> {
   bool deviceConnected = false;
   bool playing = false;
 
+
+  bool _swiped = false;
+
   var newDiceImage = Image.asset('assets/dice_images/1.png');
   var newDice2Image = Image.asset('assets/dice_images/1.png');
 
-  int oldDiceFace = 1;
-  int oldDice2Face = 1;
+  int oldDiceFace;
+  int oldDice2Face;
 
   int newDiceFace = 1;
   int newDice2Face = 1;
@@ -52,8 +70,6 @@ class _DiceAppState extends State<DiceApp> {
   @override
   void initState() {
     super.initState();
-    img = Image.network('https://picsum.photos/300/300');
-
     _connectToESense();
   }
 
@@ -173,28 +189,6 @@ class _DiceAppState extends State<DiceApp> {
             () async => await ESenseManager.getSensorConfig());
   }
 
-  ///
-  /// Updates the displyed image according to the direction the head was moved
-  ///
-  void updateImage(bool randomImage) {
-    var rng = new Random();
-    var url = randomImage
-        ? 'https://picsum.photos/300/300?v=${rng.nextInt(100000)}'
-        : 'https://cataas.com/cat?v=${rng.nextInt(100000)}';
-    if (DateTime.now().difference(lastImageUpdate).inSeconds > 1) {
-      lastImageUpdate = DateTime.now();
-      img = Image.network(
-        url,
-        fit: BoxFit.fill,
-        loadingBuilder: (context, child, progress) {
-          return progress == null ? child : LinearProgressIndicator();
-        },
-        height: 300,
-        width: 300,
-      );
-      changedPicture += 1;
-    }
-  }
 
   StreamSubscription subscription;
 
@@ -245,6 +239,7 @@ class _DiceAppState extends State<DiceApp> {
             print('up');
 
             oldDiceFace = newDiceFace;
+            oldDice2Face = newDice2Face;
             newDiceFace = Random().nextInt(6) + 1;
             print('oldDiceFace: ' + oldDiceFace.toString() + ' nextDiceFace: ' + newDiceFace.toString());
 
@@ -256,19 +251,12 @@ class _DiceAppState extends State<DiceApp> {
                   newDiceImage = Image.asset('assets/dice_images/$newDiceFace.png');
                 }); // second function
               });
-
-
-
-
-
-              //Image(image: new AssetImage('assets/dice_images/roll.gif'));
-              //sleep(const Duration(milliseconds:300));
-              //nextDiceImage = Image.asset('assets/dice_images/$nextDiceFace.png');
             });
           }
           else if(pitch <=15){
             print('down');
 
+            oldDiceFace = newDiceFace;
             oldDice2Face = newDice2Face;
             newDice2Face = Random().nextInt(6) + 1;
             print('oldDice2Face: ' + oldDice2Face.toString() + ' nextDice2Face: ' + newDice2Face.toString());
@@ -279,11 +267,9 @@ class _DiceAppState extends State<DiceApp> {
                   newDice2Image = Image.asset('assets/dice_images/$newDice2Face.png');
                 }); // second function
               });
-              //sleep(const Duration(milliseconds:300));
-              //nextDice2Image = Image.asset('assets/dice_images/$nextDice2Face.png');
             });
           }
-        } else {
+        } else { // pressed
           print('both');
 
           oldDiceFace = newDiceFace;
@@ -303,29 +289,8 @@ class _DiceAppState extends State<DiceApp> {
                 newDice2Image = Image.asset('assets/dice_images/$newDice2Face.png');
               }); // second function
             });
-            //sleep(const Duration(milliseconds:300));
-            //nextDice2Image = Image.asset('assets/dice_images/$nextDice2Face.png');
           });
         }
-
-
-
-
-
-
-//        if (event.gyro[0].abs() < 5000 &&
-//            event.gyro[1] / event.gyro[2] < 1.3 &&
-//            event.gyro[1] / event.gyro[2] > 0.7 &&
-//            event.gyro[1] > 5000) {
-//          updateImage(true);
-//        }
-//
-//        if (event.gyro[0].abs() > -5000 &&
-//            event.gyro[1] / event.gyro[2] < 1.3 &&
-//            event.gyro[1] / event.gyro[2] > 0.7 &&
-//            event.gyro[1] < -5000) {
-//          updateImage(false);
-//        }
       });
     });
 
@@ -353,7 +318,38 @@ class _DiceAppState extends State<DiceApp> {
     super.dispose();
   }
 
+  ///FUNCTIONS
+  ///-------------------------------------------------------------------------
+  ///VIEWS
+
+
   ///
+  /// Builds the app layout
+  ///
+  Widget build(BuildContext context) {
+    return MaterialApp(
+        debugShowCheckedModeBanner: false,
+        home: Scaffold(
+          appBar: myAppBar(),
+          backgroundColor: Colors.greenAccent,
+          body: myColumn(),
+          bottomNavigationBar: myBottomBar(),
+        )
+    );
+  }
+
+
+  ///
+  /// Builds the AppBar of the app
+  Widget myAppBar() {
+    return AppBar(
+      backgroundColor: Colors.teal,
+      title: Text('Dice Roller'),
+      actions: <Widget>[bluetoothStatus()],
+    );
+  }
+
+
   /// Creates the bluetooth icon with
   /// the bluetooth settings
   ///
@@ -362,7 +358,7 @@ class _DiceAppState extends State<DiceApp> {
       icon: deviceConnected
           ? Icon(
         Icons.bluetooth_connected,
-        color: Colors.white,
+        color: Colors.green,
       )
           : Icon(
         Icons.bluetooth,
@@ -375,104 +371,92 @@ class _DiceAppState extends State<DiceApp> {
   }
 
 
-
-  ///
-  /// Builds the AppBar of the app
-  Widget ownAppBar() {
-    return AppBar(
-      elevation: 10.0,
-      backgroundColor: Colors.teal,
-      title: Center(child: Text('Dice Rolling App')),
-      actions: <Widget>[bluetoothStatus()],
-    );
-  }
-
   ///
   /// Builds the body of the app,
   /// the body contains all the actual content of the app
   ///
-  Widget ownColumn() {
+  Widget myColumn() {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
-
-
       children: <Widget>[
-        Text(
-          sampling ? 'Heads Up / Down' : 'Press play!',
-          style: TextStyle(fontSize: 24.0, fontWeight: FontWeight.bold),
+
+        Container(
+            margin: const EdgeInsets.only(top: 25.0)
         ),
+
+
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10.0),
+          child: Text(deviceConnected ?
+          sampling ? 'Heads Up / Down' : 'Press the Play Icon'
+              : 'Connect Your Earables',
+            style: TextStyle(fontSize: 20.0, fontWeight: FontWeight.bold),
+          ),
+        ),
+
 
         Expanded(
             child: Padding(
               padding: const EdgeInsets.all(10.0),
               child: newDiceImage,
-              //child: nextDiceImage = Image.asset('assets/dice_images/$nextDiceFace.png'),
             )
         ),
         Expanded(
             child: Padding(
               padding: const EdgeInsets.all(10.0),
               child: newDice2Image,
-              //Image.asset('assets/dice_images/$nextDice2Image.png'),
             )
-        ),
-        Row(
-          children: <Widget>[
-//            ListView(
-//              children: [
-//                Text('eSense Device Status: \t$_deviceStatus'),
-//                Text('eSense Device Name: \t$_deviceName'),
-//                Text('eSense Battery Level: \t$_voltage'),
-//                Text('eSense Button Event: \t$_button'),
-//                Text(''),
-//                Text('$_event'),
-//              ],
-//            ),
-          ],
         ),
 
         Expanded(
 
           child: GestureDetector(onPanUpdate: (details) {
-            if (details.delta.dx < -5) {
-              print('left');
+            if (!_swiped){
 
-              oldDiceFace = newDiceFace;
-              newDiceFace = Random().nextInt(6) + 1;
-              print('oldDiceFace: ' + oldDiceFace.toString() + ' nextDiceFace: ' + newDiceFace.toString());
+              print(_swiped);
 
-              setState(() {
+              if (details.delta.dx < -5) {
+                _swiped = true;
+                print('left');
 
-                newDiceImage = Image.asset('assets/dice_images/roll.gif');
-                Future.delayed(Duration(milliseconds: 500)).then((_) {
-                  setState(() {
-                    newDiceImage = Image.asset('assets/dice_images/$newDiceFace.png');
-                  }); // second function
+                oldDiceFace = newDiceFace;
+                oldDice2Face = newDice2Face;
+                newDiceFace = Random().nextInt(6) + 1;
+                print('oldDiceFace: ' + oldDiceFace.toString() + ' nextDiceFace: ' + newDiceFace.toString());
+
+                setState(() {
+
+                  newDiceImage = Image.asset('assets/dice_images/roll.gif');
+                  Future.delayed(Duration(milliseconds: 500)).then((_) {
+                    setState(() {
+                      newDiceImage = Image.asset('assets/dice_images/$newDiceFace.png');
+                      _swiped = false;
+                    }); // second function
+                  });
                 });
-
-
-
-
-
-                //Image(image: new AssetImage('assets/dice_images/roll.gif'));
-                //sleep(const Duration(milliseconds:300));
-                //nextDiceImage = Image.asset('assets/dice_images/$nextDiceFace.png');
-              });
-            } else if (details.delta.dx > 5) {
-              print('right');
-
-              oldDice2Face = newDice2Face;
-              newDice2Face = Random().nextInt(6) + 1;
-              print('oldDice2Face: ' + oldDice2Face.toString() + ' nextDice2Face: ' + newDice2Face.toString());
-              setState(() {
-                newDice2Image = Image.asset('assets/dice_images/roll.gif');
-                Future.delayed(Duration(milliseconds: 500)).then((_) {
-                  setState(() {
-                    newDice2Image = Image.asset('assets/dice_images/$newDice2Face.png');
-                  }); // second function
+              } else if (details.delta.dx > 5) {
+                print('right');
+                _swiped = true;
+                oldDiceFace = newDiceFace;
+                oldDice2Face = newDice2Face;
+                newDice2Face = Random().nextInt(6) + 1;
+                print('oldDice2Face: ' + oldDice2Face.toString() + ' nextDice2Face: ' + newDice2Face.toString());
+                setState(() {
+                  newDice2Image = Image.asset('assets/dice_images/roll.gif');
+                  Future.delayed(Duration(milliseconds: 500)).then((_) {
+                    setState(() {
+                      newDice2Image = Image.asset('assets/dice_images/$newDice2Face.png');
+                      _swiped = false;
+                    }); // second function
+                  });
                 });
-                //sleep(const Duration(milliseconds:300));
-                //nextDice2Image = Image.asset('assets/dice_images/$nextDice2Face.png');
+              }
+            } else {
+              print(_swiped);
+              Future.delayed(Duration(milliseconds: 500)).then((_) {
+                setState(() {
+                  _swiped = false;
+                }); // second function
               });
             }
           }),
@@ -485,7 +469,7 @@ class _DiceAppState extends State<DiceApp> {
               ? _startListenToSensorEvents
               : _pauseListenToSensorEvents,
           icon: (!sampling) ? Icon(Icons.play_arrow) : Icon(Icons.pause),
-          iconSize: 80,
+          iconSize: 70,
           color: Colors.blueGrey[900],
         ),
       ],
@@ -495,15 +479,31 @@ class _DiceAppState extends State<DiceApp> {
   ///
   /// Build the BottomBar of the app
   ///
-  Widget ownBottomBar() {
+  Widget myBottomBar() {
     return BottomAppBar(
-        color: Colors.blueGrey[900],
+        color: Colors.green[900],
         child: Padding(
           padding: EdgeInsets.symmetric(horizontal: 25, vertical: 10),
-          child: Text(
-            ' You have changed the picture $changedPicture times!',
-            style: TextStyle(fontSize: 18, color: Colors.white),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Text(
+                'Last Roll: ',
+                style: TextStyle(fontSize: 18, color: Colors.white),
+              ),
+              Container(
+                  width: 20,
+                  child: oldDiceFace == null ?  Text("") : Image.asset("assets/dice_images/$oldDiceFace.png")
+              ),
+              Container(
+                  width: 20,
+                  child: oldDice2Face == null ?  Text("") : Image.asset("assets/dice_images/$oldDice2Face.png")
+              )
+
+            ],
           ),
+
+
         ));
   }
 
@@ -518,52 +518,45 @@ class _DiceAppState extends State<DiceApp> {
         return AlertDialog(
           title: new Text('Connection status'),
           content: new Container(
-            height: 400,
+            height: 230,
             child: new Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                new Container(
-                  height: 300,
-                  width: 300,
+                Expanded(
                   child: new ListView(
                     children: <Widget>[
                       new ListTile(
-                        leading: new Text(
-                            deviceConnected ? 'connected' : 'No connection'),
+                        title: new Text(
+                            deviceConnected ? 'Connected to $_deviceName' : 'No device connected.'),
                       ),
-                      new ListTile(
-                        leading: Text(deviceConnected
-                            ? _deviceName
-                            : 'No device connected'),
+
+                      Divider(),
+
+                      Center(
+                        child: Text(
+                          'How to connect:',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+
+                      Text(
+                        '\n1. Check if bluetooth is turned on your device.\n\n'
+                            '2. Hold down the button on both earplugs until they blink blue and red.\n\n'
+                            '3. Press Connect.',
+
+                        textAlign: TextAlign.left,
+                        style: TextStyle(
+                            color: Colors.blueGrey,
+                            fontSize: 12.0),
                       ),
                     ],
                   ),
                 ),
-                new Text(
-                  'Help',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                new Text(
-                  'Check if bluetooth is turned on.',
-                  textAlign: TextAlign.left,
-                  style: TextStyle(color: Colors.blueGrey),
-                ),
-                new Text(
-                  'Hold down the Button on both devices until they blink blue and red.',
-                  textAlign: TextAlign.left,
-                  style: TextStyle(color: Colors.blueGrey),
-                ),
-                new Text(
-                  'Press Connect.',
-                  textAlign: TextAlign.left,
-                  style: TextStyle(color: Colors.blueGrey),
-                ),
               ],
             ),
           ),
-          elevation: 24.0,
           actions: <Widget>[
-            new FlatButton(
+            FlatButton(
                 onPressed: () {
                   if (deviceConnected) {
                     Navigator.of(context).pop();
@@ -579,30 +572,9 @@ class _DiceAppState extends State<DiceApp> {
     );
   }
 
-  ///
-  /// Builds the app layout
-  ///
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: ownAppBar(),
-      backgroundColor: Colors.greenAccent,
-      body: ownColumn(),
-      bottomNavigationBar: ownBottomBar(),
-    );
-  }
+
 }
 
-///
-/// Parent Widget to app
-///
-class MainApp extends StatelessWidget {
-  Widget build(BuildContext context) {
-    SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
-    return MaterialApp(
-      title: 'Dice Roller',
-      home: DiceApp(),
-    );
-  }
-}
+
 
 
