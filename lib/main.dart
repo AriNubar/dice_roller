@@ -52,7 +52,7 @@ class _DiceAppState extends State<DiceApp> {
   bool deviceConnected = false;
   bool playing = false;
 
-
+  bool _rollMode = false;
   bool _swiped = false;
 
   var newDiceImage = Image.asset('assets/dice_images/1.png');
@@ -64,6 +64,10 @@ class _DiceAppState extends State<DiceApp> {
   int newDiceFace = 1;
   int newDice2Face = 1;
 
+  var oldGyroX = 0.0;
+  var oldGyroY = 0.0;
+  var oldGyroZ = 0.0;
+
   ///
   // / Initializes the State of the app at the start
   ///
@@ -73,7 +77,7 @@ class _DiceAppState extends State<DiceApp> {
     _connectToESense();
   }
 
-  ///
+  ///f
   /// Method which connects to the ESense Device and
   /// starts the process of listening to Events coming from the device
   Future<void> _connectToESense() async {
@@ -148,16 +152,13 @@ class _DiceAppState extends State<DiceApp> {
                 ? 'pressed'
                 : 'not pressed';
             break;
-          case AccelerometerOffsetRead:
-          // TODO
 
+            // don't use these
+          case AccelerometerOffsetRead:
             break;
           case AdvertisementAndConnectionIntervalRead:
-          // TODO
             break;
           case SensorConfigRead:
-          // TODO
-
             break;
         }
       });
@@ -199,18 +200,16 @@ class _DiceAppState extends State<DiceApp> {
   void _startListenToSensorEvents() async {
     // subscribe to sensor event from the eSense device
     subscription = ESenseManager.sensorEvents.listen((event) {
-      print('SENSOR event: $event');
+      //print('SENSOR event: $event');
       setState(() {
         _event = event.toString();
-
-
 
         var accX = event.accel[0] / 16384.0;
         var accY = event.accel[1] / 16384.0;
         var accZ = event.accel[2] / 16384.0;
 
-        var accAngleX = (atan(accY / sqrt(pow(accX, 2) + pow(accZ, 2))) * 180 / pi) - 0.58; // accError;
-        var accAngleY = (atan(-1 * accX / sqrt(pow(accY, 2) + pow(accZ, 2))) * 180 * pi) + 1.58;
+        var accAngleX = (atan(accY / sqrt(pow(accX, 2) + pow(accZ, 2))) * 180 / pi); // accError;
+        var accAngleY = (atan(-1 * accX / sqrt(pow(accY, 2) + pow(accZ, 2))) * 180 * pi);
 
 
 
@@ -218,9 +217,6 @@ class _DiceAppState extends State<DiceApp> {
         var gyroY = event.gyro[1] / 131.0;
         var gyroZ = event.gyro[2] / 131.0;
 
-        gyroX = gyroX + 0.56; // gyroErrorX ~ 0.56
-        gyroY = gyroY - 2; // gyroErrorY ~ 2
-        gyroZ = gyroZ + 0.79;   // gyroErrorZ ~ 0.79
 
         var previousTime = new DateTime.now().millisecondsSinceEpoch;
         var currentTime = new DateTime.now().millisecondsSinceEpoch;
@@ -228,68 +224,44 @@ class _DiceAppState extends State<DiceApp> {
 
         var gyroAngleX = gyroX * eplasedTime;
         var gyroAngleY = gyroY * eplasedTime;
+        var gyroAngleZ = gyroZ * eplasedTime;
 
-        var yaw = gyroZ * eplasedTime;
+        // var yaw = gyroZ * eplasedTime;
 
-        var roll = 0.96 * gyroAngleX + 0.04 * accAngleX;
+        //var roll = 0.96 * gyroAngleX + 0.04 * accAngleX;
         var pitch = 0.96 * gyroAngleY + 0.04 * accAngleY;
+        //var yaw = 0.96 * gyroAngleZ + 0.04 * accAngleZ;
 
-        if(_button == 'not pressed'){
-          if (pitch >= 25) {
-            print('up');
 
-            oldDiceFace = newDiceFace;
-            oldDice2Face = newDice2Face;
-            newDiceFace = Random().nextInt(6) + 1;
-            print('oldDiceFace: ' + oldDiceFace.toString() + ' nextDiceFace: ' + newDiceFace.toString());
+        var accDiffX = ((oldGyroX - gyroX) / gyroX);
+        var accDiffY = ((oldGyroX - gyroY) / gyroY);
+        var accDiffZ = ((oldGyroX - gyroZ) / gyroZ);
 
-            setState(() {
+        print("accDiffX - accDiffY - accDiffZ: " + accDiffX.toString() + " " + accDiffY.toString() + " " + accDiffZ.toString());
+        //print("accX - accY - accZ: " + accX.toString() + " " + accY.toString() + " " + accZ.toString());
+        //print("gyroX - gyroY - gyroZ: " + gyroX.toString() + " " + gyroY.toString() + " " + gyroZ.toString());
+        //print("Roll - Pitch - Yaw: " + roll.toString() + " " + pitch.toString() + " " + yaw.toString());
 
-              newDiceImage = Image.asset('assets/dice_images/roll.gif');
-              Future.delayed(Duration(milliseconds: 500)).then((_) {
-                setState(() {
-                  newDiceImage = Image.asset('assets/dice_images/$newDiceFace.png');
-                }); // second function
-              });
-            });
+        if (_rollMode) {
+
+          if ((accDiffX.abs() >= 0.7) && (accDiffY.abs() >= 0.7) && (accDiffZ.abs() >= 0.7)){
+              _roll("both");
+              oldGyroX = gyroX;
           }
-          else if(pitch <=15){
-            print('down');
+        }
 
-            oldDiceFace = newDiceFace;
-            oldDice2Face = newDice2Face;
-            newDice2Face = Random().nextInt(6) + 1;
-            print('oldDice2Face: ' + oldDice2Face.toString() + ' nextDice2Face: ' + newDice2Face.toString());
-            setState(() {
-              newDice2Image = Image.asset('assets/dice_images/roll.gif');
-              Future.delayed(Duration(milliseconds: 500)).then((_) {
-                setState(() {
-                  newDice2Image = Image.asset('assets/dice_images/$newDice2Face.png');
-                }); // second function
-              });
-            });
+        else if(_button == 'not pressed'){
+          if (pitch <= 18) {
+            print('up');
+            _roll("up");
+          }
+          else if(pitch >= 26){
+            print('down');
+            _roll("down");
           }
         } else { // pressed
           print('both');
-
-          oldDiceFace = newDiceFace;
-          newDiceFace = Random().nextInt(6) + 1;
-          print('oldDice2Face: ' + oldDiceFace.toString() + ' nextDiceFace: ' + newDiceFace.toString());
-
-          oldDice2Face = newDice2Face;
-          newDice2Face = Random().nextInt(6) + 1;
-          print('oldDice2Face: ' + oldDice2Face.toString() + ' nextDice2Face: ' + newDice2Face.toString());
-
-          setState(() {
-            newDiceImage = Image.asset('assets/dice_images/roll.gif');
-            newDice2Image = Image.asset('assets/dice_images/roll.gif');
-            Future.delayed(Duration(milliseconds: 500)).then((_) {
-              setState(() {
-                newDiceImage = Image.asset('assets/dice_images/$newDiceFace.png');
-                newDice2Image = Image.asset('assets/dice_images/$newDice2Face.png');
-              }); // second function
-            });
-          });
+          _roll("both");
         }
       });
     });
@@ -298,6 +270,66 @@ class _DiceAppState extends State<DiceApp> {
       sampling = true;
     });
   }
+
+
+  ///
+  /// Method for changing the face of a dice and printing it onto the screen.
+  ///
+  void _roll(String which){
+    switch (which){
+      case "up":
+        oldDiceFace = newDiceFace;
+        oldDice2Face = newDice2Face;
+        newDiceFace = Random().nextInt(6) + 1;
+        print('oldDiceFace: ' + oldDiceFace.toString() + ' nextDiceFace: ' + newDiceFace.toString());
+
+        setState(() {
+          newDiceImage = Image.asset('assets/dice_images/roll.gif');
+          Future.delayed(Duration(milliseconds: 500)).then((_) {
+            setState(() {
+              newDiceImage = Image.asset('assets/dice_images/$newDiceFace.png');
+            }); // second function
+          });
+        });
+        break;
+      case "down":
+        oldDiceFace = newDiceFace;
+        oldDice2Face = newDice2Face;
+        newDice2Face = Random().nextInt(6) + 1;
+        print('oldDice2Face: ' + oldDice2Face.toString() + ' nextDice2Face: ' + newDice2Face.toString());
+        setState(() {
+          newDice2Image = Image.asset('assets/dice_images/roll.gif');
+          Future.delayed(Duration(milliseconds: 500)).then((_) {
+            setState(() {
+              newDice2Image = Image.asset('assets/dice_images/$newDice2Face.png');
+            }); // second function
+          });
+        });
+        break;
+      case "both":
+        oldDiceFace = newDiceFace;
+        newDiceFace = Random().nextInt(6) + 1;
+        print('oldDice2Face: ' + oldDiceFace.toString() + ' nextDiceFace: ' + newDiceFace.toString());
+
+        oldDice2Face = newDice2Face;
+        newDice2Face = Random().nextInt(6) + 1;
+        print('oldDice2Face: ' + oldDice2Face.toString() + ' nextDice2Face: ' + newDice2Face.toString());
+
+        setState(() {
+          newDiceImage = Image.asset('assets/dice_images/roll.gif');
+          newDice2Image = Image.asset('assets/dice_images/roll.gif');
+          Future.delayed(Duration(milliseconds: 500)).then((_) {
+            setState(() {
+              newDiceImage = Image.asset('assets/dice_images/$newDiceFace.png');
+              newDice2Image = Image.asset('assets/dice_images/$newDice2Face.png');
+            }); // second function
+          });
+        });
+        break;
+    }
+
+  }
+
 
   ///
   /// pauses the continuously data reading
@@ -371,110 +403,124 @@ class _DiceAppState extends State<DiceApp> {
   }
 
 
-  ///
-  /// Builds the body of the app,
-  /// the body contains all the actual content of the app
-  ///
+// Wrapped with Gesture Detector
   Widget myColumn() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: <Widget>[
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onPanUpdate: (details) {
+        if (!_swiped){
 
-        Container(
-            margin: const EdgeInsets.only(top: 25.0)
-        ),
+          print(_swiped);
 
+          if (details.delta.dx < -15) {
+            _swiped = true;
+            print('left');
 
-        Padding(
-          padding: const EdgeInsets.only(bottom: 10.0),
-          child: Text(deviceConnected ?
-          sampling ? 'Heads Up / Down' : 'Press the Play Icon'
-              : 'Connect Your Earables',
-            style: TextStyle(fontSize: 20.0, fontWeight: FontWeight.bold),
-          ),
-        ),
+            oldDiceFace = newDiceFace;
+            oldDice2Face = newDice2Face;
+            newDiceFace = Random().nextInt(6) + 1;
+            print('oldDiceFace: ' + oldDiceFace.toString() + ' nextDiceFace: ' + newDiceFace.toString());
 
+            setState(() {
 
-        Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(10.0),
-              child: newDiceImage,
-            )
-        ),
-        Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(10.0),
-              child: newDice2Image,
-            )
-        ),
-
-        Expanded(
-
-          child: GestureDetector(onPanUpdate: (details) {
-            if (!_swiped){
-
-              print(_swiped);
-
-              if (details.delta.dx < -5) {
-                _swiped = true;
-                print('left');
-
-                oldDiceFace = newDiceFace;
-                oldDice2Face = newDice2Face;
-                newDiceFace = Random().nextInt(6) + 1;
-                print('oldDiceFace: ' + oldDiceFace.toString() + ' nextDiceFace: ' + newDiceFace.toString());
-
-                setState(() {
-
-                  newDiceImage = Image.asset('assets/dice_images/roll.gif');
-                  Future.delayed(Duration(milliseconds: 500)).then((_) {
-                    setState(() {
-                      newDiceImage = Image.asset('assets/dice_images/$newDiceFace.png');
-                      _swiped = false;
-                    }); // second function
-                  });
-                });
-              } else if (details.delta.dx > 5) {
-                print('right');
-                _swiped = true;
-                oldDiceFace = newDiceFace;
-                oldDice2Face = newDice2Face;
-                newDice2Face = Random().nextInt(6) + 1;
-                print('oldDice2Face: ' + oldDice2Face.toString() + ' nextDice2Face: ' + newDice2Face.toString());
-                setState(() {
-                  newDice2Image = Image.asset('assets/dice_images/roll.gif');
-                  Future.delayed(Duration(milliseconds: 500)).then((_) {
-                    setState(() {
-                      newDice2Image = Image.asset('assets/dice_images/$newDice2Face.png');
-                      _swiped = false;
-                    }); // second function
-                  });
-                });
-              }
-            } else {
-              print(_swiped);
+              newDiceImage = Image.asset('assets/dice_images/roll.gif');
               Future.delayed(Duration(milliseconds: 500)).then((_) {
                 setState(() {
+                  newDiceImage = Image.asset('assets/dice_images/$newDiceFace.png');
                   _swiped = false;
                 }); // second function
               });
-            }
-          }),
-        ),
+            });
+          } else if (details.delta.dx > 15) {
+            print('right');
+            _swiped = true;
+            oldDiceFace = newDiceFace;
+            oldDice2Face = newDice2Face;
+            newDice2Face = Random().nextInt(6) + 1;
+            print('oldDice2Face: ' + oldDice2Face.toString() + ' nextDice2Face: ' + newDice2Face.toString());
+            setState(() {
+              newDice2Image = Image.asset('assets/dice_images/roll.gif');
+              Future.delayed(Duration(milliseconds: 500)).then((_) {
+                setState(() {
+                  newDice2Image = Image.asset('assets/dice_images/$newDice2Face.png');
+                  _swiped = false;
+                }); // second function
+              });
+            });
+          }
+        } else {
+          print(_swiped);
+          Future.delayed(Duration(milliseconds: 500)).then((_) {
+            setState(() {
+              _swiped = false;
+            }); // second function
+          });
+        }
+      },
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: <Widget>[
 
-        IconButton(
-          onPressed: (!ESenseManager.connected)
-              ? null
-              : (!sampling)
-              ? _startListenToSensorEvents
-              : _pauseListenToSensorEvents,
-          icon: (!sampling) ? Icon(Icons.play_arrow) : Icon(Icons.pause),
-          iconSize: 70,
-          color: Colors.blueGrey[900],
-        ),
-      ],
+          Container(
+            margin: const EdgeInsets.only(top: 25.0),
+          ),
+
+
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10.0),
+            child: Text(deviceConnected ?
+            sampling ? _rollMode ? "Roll your earable" : 'Heads Up / Down' : 'Press the Play Icon'
+                : 'Connect Your Earables',
+              style: TextStyle(fontSize: 20.0, fontWeight: FontWeight.bold),
+            ),
+          ),
+
+
+          Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(10.0),
+                child: newDiceImage,
+              )
+          ),
+          Expanded(
+              child: Padding(
+                padding: const EdgeInsets.all(10.0),
+                child: newDice2Image,
+              )
+          ),
+
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              IconButton(
+                onPressed: (!ESenseManager.connected)
+                    ? null
+                    : (!sampling)
+                    ? _startListenToSensorEvents
+                    : _pauseListenToSensorEvents,
+                icon: (!sampling) ? Icon(Icons.play_arrow) : Icon(Icons.pause),
+                iconSize: 70,
+                color: Colors.blueGrey[900],
+              ),
+              IconButton(
+                onPressed: (!ESenseManager.connected)
+                    ? null
+                    : (!sampling)
+                    ? null
+                    : () => _rollMode = !_rollMode,
+                icon: (sampling && _rollMode) ? Icon(Icons.grid_on) : Icon(Icons.grid_off) ,
+                iconSize: 70,
+                color: Colors.blueGrey[900],
+              ),
+            ],
+          )
+
+
+        ],
+      ),
     );
   }
+
 
   ///
   /// Build the BottomBar of the app
@@ -571,8 +617,6 @@ class _DiceAppState extends State<DiceApp> {
       },
     );
   }
-
-
 }
 
 
