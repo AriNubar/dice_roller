@@ -47,7 +47,6 @@ class _DiceAppState extends State<DiceApp> {
 
   // the name of the eSense device to connect to -- change this to your own device.
   String eSenseName = 'eSense-0058';
-  Image img;
   String _button = '';
   bool deviceConnected = false;
   bool playing = false;
@@ -85,7 +84,7 @@ class _DiceAppState extends State<DiceApp> {
 
     // if you want to get the connection events when connecting, set up the listener BEFORE connecting...
     ESenseManager.connectionEvents.listen((event) {
-      print('CONNECTION event: $event');
+      //print('CONNECTION event: $event');
 
       // when we're connected to the eSense device, we can start listening to events from it
       if (event.type == ConnectionType.connected) {
@@ -137,7 +136,7 @@ class _DiceAppState extends State<DiceApp> {
   ///
   void _listenToESenseEvents() async {
     ESenseManager.eSenseEvents.listen((event) {
-      print('ESENSE event: $event');
+      //print('ESENSE event: $event');
 
       setState(() {
         switch (event.runtimeType) {
@@ -237,11 +236,6 @@ class _DiceAppState extends State<DiceApp> {
         var accDiffY = ((oldGyroX - gyroY) / gyroY);
         var accDiffZ = ((oldGyroX - gyroZ) / gyroZ);
 
-        print("accDiffX - accDiffY - accDiffZ: " + accDiffX.toString() + " " + accDiffY.toString() + " " + accDiffZ.toString());
-        //print("accX - accY - accZ: " + accX.toString() + " " + accY.toString() + " " + accZ.toString());
-        //print("gyroX - gyroY - gyroZ: " + gyroX.toString() + " " + gyroY.toString() + " " + gyroZ.toString());
-        //print("Roll - Pitch - Yaw: " + roll.toString() + " " + pitch.toString() + " " + yaw.toString());
-
         if (_rollMode) {
 
           if ((accDiffX.abs() >= 0.7) && (accDiffY.abs() >= 0.7) && (accDiffZ.abs() >= 0.7)){
@@ -249,18 +243,14 @@ class _DiceAppState extends State<DiceApp> {
               oldGyroX = gyroX;
           }
         }
-
         else if(_button == 'not pressed'){
           if (pitch <= 18) {
-            print('up');
             _roll("up");
           }
           else if(pitch >= 26){
-            print('down');
             _roll("down");
           }
         } else { // pressed
-          print('both');
           _roll("both");
         }
       });
@@ -281,7 +271,6 @@ class _DiceAppState extends State<DiceApp> {
         oldDiceFace = newDiceFace;
         oldDice2Face = newDice2Face;
         newDiceFace = Random().nextInt(6) + 1;
-        print('oldDiceFace: ' + oldDiceFace.toString() + ' nextDiceFace: ' + newDiceFace.toString());
 
         setState(() {
           newDiceImage = Image.asset('assets/dice_images/roll.gif');
@@ -296,7 +285,6 @@ class _DiceAppState extends State<DiceApp> {
         oldDiceFace = newDiceFace;
         oldDice2Face = newDice2Face;
         newDice2Face = Random().nextInt(6) + 1;
-        print('oldDice2Face: ' + oldDice2Face.toString() + ' nextDice2Face: ' + newDice2Face.toString());
         setState(() {
           newDice2Image = Image.asset('assets/dice_images/roll.gif');
           Future.delayed(Duration(milliseconds: 500)).then((_) {
@@ -309,11 +297,9 @@ class _DiceAppState extends State<DiceApp> {
       case "both":
         oldDiceFace = newDiceFace;
         newDiceFace = Random().nextInt(6) + 1;
-        print('oldDice2Face: ' + oldDiceFace.toString() + ' nextDiceFace: ' + newDiceFace.toString());
 
         oldDice2Face = newDice2Face;
         newDice2Face = Random().nextInt(6) + 1;
-        print('oldDice2Face: ' + oldDice2Face.toString() + ' nextDice2Face: ' + newDice2Face.toString());
 
         setState(() {
           newDiceImage = Image.asset('assets/dice_images/roll.gif');
@@ -408,53 +394,67 @@ class _DiceAppState extends State<DiceApp> {
     return GestureDetector(
       behavior: HitTestBehavior.translucent,
       onPanUpdate: (details) {
-        if (!_swiped){
-
-          print(_swiped);
+        if (!_swiped) {
 
           if (details.delta.dx < -15) {
             _swiped = true;
-            print('left');
 
             oldDiceFace = newDiceFace;
             oldDice2Face = newDice2Face;
             newDiceFace = Random().nextInt(6) + 1;
-            print('oldDiceFace: ' + oldDiceFace.toString() + ' nextDiceFace: ' + newDiceFace.toString());
-
             setState(() {
-
               newDiceImage = Image.asset('assets/dice_images/roll.gif');
               Future.delayed(Duration(milliseconds: 500)).then((_) {
                 setState(() {
-                  newDiceImage = Image.asset('assets/dice_images/$newDiceFace.png');
+                  newDiceImage =
+                      Image.asset('assets/dice_images/$newDiceFace.png');
                   _swiped = false;
                 }); // second function
               });
             });
           } else if (details.delta.dx > 15) {
-            print('right');
             _swiped = true;
             oldDiceFace = newDiceFace;
             oldDice2Face = newDice2Face;
             newDice2Face = Random().nextInt(6) + 1;
-            print('oldDice2Face: ' + oldDice2Face.toString() + ' nextDice2Face: ' + newDice2Face.toString());
+
             setState(() {
               newDice2Image = Image.asset('assets/dice_images/roll.gif');
               Future.delayed(Duration(milliseconds: 500)).then((_) {
                 setState(() {
-                  newDice2Image = Image.asset('assets/dice_images/$newDice2Face.png');
+                  newDice2Image =
+                      Image.asset('assets/dice_images/$newDice2Face.png');
                   _swiped = false;
                 }); // second function
               });
             });
-          }
-        } else {
-          print(_swiped);
-          Future.delayed(Duration(milliseconds: 500)).then((_) {
+          } else if (details.delta.dy > 10) {
+            _swiped = true;
+            oldDiceFace = newDiceFace;
+            oldDice2Face = newDice2Face;
+            newDiceFace = Random().nextInt(6) + 1;
+            newDice2Face = Random().nextInt(6) + 1;
+
             setState(() {
-              _swiped = false;
-            }); // second function
-          });
+              newDiceImage = Image.asset('assets/dice_images/roll.gif');
+              newDice2Image = Image.asset('assets/dice_images/roll.gif');
+              Future.delayed(Duration(milliseconds: 500)).then((_) {
+                setState(() {
+                  newDiceImage =
+                      Image.asset('assets/dice_images/$newDiceFace.png');
+                  newDice2Image =
+                      Image.asset('assets/dice_images/$newDice2Face.png');
+                  _swiped = false;
+                }); // second function
+              });
+            });
+          } else {
+            Future.delayed(Duration(milliseconds: 500)).then((_) {
+              setState(() {
+                _swiped = false;
+              }); // second function
+            });
+          }
         }
       },
       child: Column(
