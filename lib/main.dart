@@ -47,7 +47,7 @@ class _DiceAppState extends State<DiceApp> {
 
   // the name of the eSense device to connect to -- change this to your own device.
   String eSenseName = 'eSense-0058';
-  String _button = '';
+  String _button = 'not pressed';
   bool deviceConnected = false;
   bool playing = false;
 
@@ -229,7 +229,6 @@ class _DiceAppState extends State<DiceApp> {
 
         //var roll = 0.96 * gyroAngleX + 0.04 * accAngleX;
         var pitch = 0.96 * gyroAngleY + 0.04 * accAngleY;
-        //var yaw = 0.96 * gyroAngleZ + 0.04 * accAngleZ;
 
 
         var accDiffX = ((oldGyroX - gyroX) / gyroX);
@@ -376,7 +375,7 @@ class _DiceAppState extends State<DiceApp> {
       icon: deviceConnected
           ? Icon(
         Icons.bluetooth_connected,
-        color: Colors.green,
+        color: Colors.green[400],
       )
           : Icon(
         Icons.bluetooth,
@@ -586,9 +585,8 @@ class _DiceAppState extends State<DiceApp> {
                       ),
 
                       Text(
-                        '\n1. Check if bluetooth is turned on your device.\n\n'
-                            '2. Hold down the button on both earplugs until they blink blue and red.\n\n'
-                            '3. Press Connect.',
+                            '\n1. Hold down the button on your left earplug.\n\n'
+                            '2. Press Connect.',
 
                         textAlign: TextAlign.left,
                         style: TextStyle(
